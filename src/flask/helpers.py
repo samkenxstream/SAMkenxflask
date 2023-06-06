@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import os
 import pkgutil
 import socket
 import sys
 import typing as t
+import warnings
 from datetime import datetime
 from functools import lru_cache
 from functools import update_wrapper
@@ -22,7 +25,6 @@ from .signals import message_flashed
 if t.TYPE_CHECKING:  # pragma: no cover
     from werkzeug.wrappers import Response as BaseResponse
     from .wrappers import Response
-    import typing_extensions as te
 
 
 def get_debug_flag() -> bool:
@@ -49,9 +51,9 @@ def get_load_dotenv(default: bool = True) -> bool:
 
 
 def stream_with_context(
-    generator_or_function: t.Union[
-        t.Iterator[t.AnyStr], t.Callable[..., t.Iterator[t.AnyStr]]
-    ]
+    generator_or_function: (
+        t.Iterator[t.AnyStr] | t.Callable[..., t.Iterator[t.AnyStr]]
+    )
 ) -> t.Iterator[t.AnyStr]:
     """Request contexts disappear when the response is started on the server.
     This is done for efficiency reasons and to make it less likely to encounter
@@ -127,7 +129,7 @@ def stream_with_context(
     return wrapped_g
 
 
-def make_response(*args: t.Any) -> "Response":
+def make_response(*args: t.Any) -> Response:
     """Sometimes it is necessary to set additional headers in a view.  Because
     views do not have to return response objects but can return a value that
     is converted into a response object by Flask itself, it becomes tricky to
@@ -179,10 +181,10 @@ def make_response(*args: t.Any) -> "Response":
 def url_for(
     endpoint: str,
     *,
-    _anchor: t.Optional[str] = None,
-    _method: t.Optional[str] = None,
-    _scheme: t.Optional[str] = None,
-    _external: t.Optional[bool] = None,
+    _anchor: str | None = None,
+    _method: str | None = None,
+    _scheme: str | None = None,
+    _external: bool | None = None,
     **values: t.Any,
 ) -> str:
     """Generate a URL to the given endpoint with the given values.
@@ -231,8 +233,8 @@ def url_for(
 
 
 def redirect(
-    location: str, code: int = 302, Response: t.Optional[t.Type["BaseResponse"]] = None
-) -> "BaseResponse":
+    location: str, code: int = 302, Response: type[BaseResponse] | None = None
+) -> BaseResponse:
     """Create a redirect response object.
 
     If :data:`~flask.current_app` is available, it will use its
@@ -254,9 +256,7 @@ def redirect(
     return _wz_redirect(location, code=code, Response=Response)
 
 
-def abort(
-    code: t.Union[int, "BaseResponse"], *args: t.Any, **kwargs: t.Any
-) -> "te.NoReturn":
+def abort(code: int | BaseResponse, *args: t.Any, **kwargs: t.Any) -> t.NoReturn:
     """Raise an :exc:`~werkzeug.exceptions.HTTPException` for the given
     status code.
 
@@ -326,8 +326,10 @@ def flash(message: str, category: str = "message") -> None:
     flashes = session.get("_flashes", [])
     flashes.append((category, message))
     session["_flashes"] = flashes
+    app = current_app._get_current_object()  # type: ignore
     message_flashed.send(
-        current_app._get_current_object(),  # type: ignore
+        app,
+        _async_wrapper=app.ensure_sync,
         message=message,
         category=category,
     )
@@ -335,7 +337,7 @@ def flash(message: str, category: str = "message") -> None:
 
 def get_flashed_messages(
     with_categories: bool = False, category_filter: t.Iterable[str] = ()
-) -> t.Union[t.List[str], t.List[t.Tuple[str, str]]]:
+) -> list[str] | list[tuple[str, str]]:
     """Pulls all flashed messages from the session and returns them.
     Further calls in the same request to the function will return
     the same messages.  By default just the messages are returned,
@@ -375,7 +377,7 @@ def get_flashed_messages(
     return flashes
 
 
-def _prepare_send_file_kwargs(**kwargs: t.Any) -> t.Dict[str, t.Any]:
+def _prepare_send_file_kwargs(**kwargs: t.Any) -> dict[str, t.Any]:
     if kwargs.get("max_age") is None:
         kwargs["max_age"] = current_app.get_send_file_max_age
 
@@ -389,17 +391,15 @@ def _prepare_send_file_kwargs(**kwargs: t.Any) -> t.Dict[str, t.Any]:
 
 
 def send_file(
-    path_or_file: t.Union[os.PathLike, str, t.BinaryIO],
-    mimetype: t.Optional[str] = None,
+    path_or_file: os.PathLike | str | t.BinaryIO,
+    mimetype: str | None = None,
     as_attachment: bool = False,
-    download_name: t.Optional[str] = None,
+    download_name: str | None = None,
     conditional: bool = True,
-    etag: t.Union[bool, str] = True,
-    last_modified: t.Optional[t.Union[datetime, int, float]] = None,
-    max_age: t.Optional[
-        t.Union[int, t.Callable[[t.Optional[str]], t.Optional[int]]]
-    ] = None,
-) -> "Response":
+    etag: bool | str = True,
+    last_modified: datetime | int | float | None = None,
+    max_age: None | (int | t.Callable[[str | None], int | None]) = None,
+) -> Response:
     """Send the contents of a file to the client.
 
     The first argument can be a file path or a file-like object. Paths
@@ -517,10 +517,10 @@ def send_file(
 
 
 def send_from_directory(
-    directory: t.Union[os.PathLike, str],
-    path: t.Union[os.PathLike, str],
+    directory: os.PathLike | str,
+    path: os.PathLike | str,
     **kwargs: t.Any,
-) -> "Response":
+) -> Response:
     """Send a file from within a directory using :func:`send_file`.
 
     .. code-block:: python
@@ -624,8 +624,8 @@ class locked_cached_property(werkzeug.utils.cached_property):
     def __init__(
         self,
         fget: t.Callable[[t.Any], t.Any],
-        name: t.Optional[str] = None,
-        doc: t.Optional[str] = None,
+        name: str | None = None,
+        doc: str | None = None,
     ) -> None:
         import warnings
 
@@ -662,7 +662,16 @@ def is_ip(value: str) -> bool:
 
     :return: True if string is an IP address
     :rtype: bool
+
+    .. deprecated:: 2.3
+        Will be removed in Flask 2.4.
     """
+    warnings.warn(
+        "The 'is_ip' function is deprecated and will be removed in Flask 2.4.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     for family in (socket.AF_INET, socket.AF_INET6):
         try:
             socket.inet_pton(family, value)
@@ -675,8 +684,8 @@ def is_ip(value: str) -> bool:
 
 
 @lru_cache(maxsize=None)
-def _split_blueprint_path(name: str) -> t.List[str]:
-    out: t.List[str] = [name]
+def _split_blueprint_path(name: str) -> list[str]:
+    out: list[str] = [name]
 
     if "." in name:
         out.extend(_split_blueprint_path(name.rpartition(".")[0]))

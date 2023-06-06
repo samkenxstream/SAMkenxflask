@@ -1,12 +1,12 @@
 ci:
-  autoupdate_branch: "2.2.x"
+  autoupdate_branch: "2.3.x"
   autoupdate_schedule: monthly
 repos:
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
+    rev: v3.4.0
     hooks:
       - id: pyupgrade
-        args: ["--py37-plus"]
+        args: ["--py38-plus"]
   - repo: https://github.com/asottile/reorder_python_imports
     rev: v3.9.0
     hooks:
@@ -15,7 +15,7 @@ repos:
         files: "^(?!examples/)"
         args: ["--application-directories", "src"]
   - repo: https://github.com/psf/black
-    rev: 23.1.0
+    rev: 23.3.0
     hooks:
       - id: black
   - repo: https://github.com/PyCQA/flake8
@@ -26,7 +26,7 @@ repos:
           - flake8-bugbear
           - flake8-implicit-str-concat
   - repo: https://github.com/peterdemin/pip-compile-multi
-    rev: v2.6.2
+    rev: v2.6.3
     hooks:
       - id: pip-compile-multi-verify
   - repo: https://github.com/pre-commit/pre-commit-hooks

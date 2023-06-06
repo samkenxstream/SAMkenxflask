@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import errno
 import json
 import os
@@ -10,7 +12,7 @@ from werkzeug.utils import import_string
 class ConfigAttribute:
     """Makes an attribute forward to the config"""
 
-    def __init__(self, name: str, get_converter: t.Optional[t.Callable] = None) -> None:
+    def __init__(self, name: str, get_converter: t.Callable | None = None) -> None:
         self.__name__ = name
         self.get_converter = get_converter
 
@@ -70,7 +72,9 @@ class Config(dict):
     :param defaults: an optional dictionary of default values
     """
 
-    def __init__(self, root_path: str, defaults: t.Optional[dict] = None) -> None:
+    def __init__(
+        self, root_path: str | os.PathLike, defaults: dict | None = None
+    ) -> None:
         super().__init__(defaults or {})
         self.root_path = root_path
 
@@ -162,7 +166,7 @@ class Config(dict):
 
         return True
 
-    def from_pyfile(self, filename: str, silent: bool = False) -> bool:
+    def from_pyfile(self, filename: str | os.PathLike, silent: bool = False) -> bool:
         """Updates the values in the config from a Python file.  This function
         behaves as if the file was imported as module with the
         :meth:`from_object` function.
@@ -191,7 +195,7 @@ class Config(dict):
         self.from_object(d)
         return True
 
-    def from_object(self, obj: t.Union[object, str]) -> None:
+    def from_object(self, obj: object | str) -> None:
         """Updates the values from the given object.  An object can be of one
         of the following two types:
 
@@ -231,7 +235,7 @@ class Config(dict):
 
     def from_file(
         self,
-        filename: str,
+        filename: str | os.PathLike,
         load: t.Callable[[t.IO[t.Any]], t.Mapping],
         silent: bool = False,
         text: bool = True,
@@ -278,7 +282,7 @@ class Config(dict):
         return self.from_mapping(obj)
 
     def from_mapping(
-        self, mapping: t.Optional[t.Mapping[str, t.Any]] = None, **kwargs: t.Any
+        self, mapping: t.Mapping[str, t.Any] | None = None, **kwargs: t.Any
     ) -> bool:
         """Updates the config like :meth:`update` ignoring items with
         non-upper keys.
@@ -287,7 +291,7 @@ class Config(dict):
 
         .. versionadded:: 0.11
         """
-        mappings: t.Dict[str, t.Any] = {}
+        mappings: dict[str, t.Any] = {}
         if mapping is not None:
             mappings.update(mapping)
         mappings.update(kwargs)
@@ -298,7 +302,7 @@ class Config(dict):
 
     def get_namespace(
         self, namespace: str, lowercase: bool = True, trim_namespace: bool = True
-    ) -> t.Dict[str, t.Any]:
+    ) -> dict[str, t.Any]:
         """Returns a dictionary containing a subset of configuration options
         that match the specified namespace/prefix. Example usage::
 

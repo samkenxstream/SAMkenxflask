@@ -10,11 +10,6 @@ from flask.json import jsonify
 from flask.testing import EnvironBuilder
 from flask.testing import FlaskCliRunner
 
-try:
-    import blinker
-except ImportError:
-    blinker = None
-
 
 def test_environ_defaults_from_config(app, client):
     app.config["SERVER_NAME"] = "example.com:1234"
@@ -206,10 +201,10 @@ def test_session_transactions_keep_context(app, client, req_ctx):
 
 def test_session_transaction_needs_cookies(app):
     c = app.test_client(use_cookies=False)
-    with pytest.raises(RuntimeError) as e:
+
+    with pytest.raises(TypeError, match="Cookies are disabled."):
         with c.session_transaction():
             pass
-    assert "cookies" in str(e.value)
 
 
 def test_test_client_context_binding(app, client):
@@ -285,7 +280,6 @@ def test_json_request_and_response(app, client):
         assert rv.get_json() == json_data
 
 
-@pytest.mark.skipif(blinker is None, reason="blinker is not installed")
 def test_client_json_no_app_context(app, client):
     @app.route("/hello", methods=["POST"])
     def hello():
